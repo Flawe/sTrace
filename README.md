@@ -1,4 +1,3 @@
 sTrace
 ======
 
-Scheme ray tracer
