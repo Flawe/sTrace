@@ -50,34 +50,39 @@
     (vec-norm rd)))
 
 ;; calls the relevant intersection function for all objects in the scene
-;; and builds a list of intersection results
-(define (traverse-scene ro rd)
-  (second (foldl (lambda (intersection closest) ; closest contains (dist-sqr intersection)
-                   (if (> (first intersection) 0)
-                       (let ((dist (vec-dist-sqr ro (third intersection))))
-                         (if (< dist (first closest))
-                             `(,dist ,intersection)
-                             closest))
-                       closest))
-                 `(9999999 ,*no-intersection*)
-                 (map (lambda (object)
-                        ((first object) ro rd object)) ;; evaluate the object's intersection function
-                      (get-scene-objects)))))
+;; and returns the closest intersection
+(define (traverse-scene ro rd max-dist-sqr)
+  (foldl (lambda (intersection closest) ; closest contains (dist-sqr intersection)
+           (if (> (first intersection) 0)
+               (let ((dist (vec-dist-sqr ro (third intersection))))
+                 (if (< dist (first closest))
+                     `(,dist ,intersection)
+                     closest))
+               closest))
+         `(,max-dist-sqr ,*no-intersection*)
+         (map (lambda (object)
+                ((first object) ro rd object)) ;; evaluate the object's intersection function
+              (get-scene-objects))))
 
 ;; traces a ray through the scene and returns a color
 (define (trace ro rd step)
   (if (> step *max-ray-steps*)
       *bg-col*
-      (let* ((result (traverse-scene ro rd))
-             (status (first result))
-             (color (second result))
-             (pos (third result))
-             (norm (fourth result)))
+      (let* ((result (traverse-scene ro rd 9999999))
+             (dist-sqr (first result))
+             (isect (second result))
+             (status (first isect))
+             (color (second isect))
+             (pos (third isect))
+             (norm (fourth isect)))
         (if (> status 0)
             (let* ((lvec (vec-norm (vec-sub *point-light* pos)))
                    (ndl (max 0 (vec-dot norm lvec)))
-                   (vcol (list->vector color)))
-              (vector->list (vec-add (vec-mul (vec-mul vcol 0.9) ndl) (vec-mul vcol 0.1))))
+                   (vcol (list->vector color))
+                   (in-shadow (first (second (traverse-scene (vec-add pos (vec-mul lvec 0.00001)) lvec (vec-dist-sqr *point-light* pos))))))
+              (if (> in-shadow 0)
+                  (vector->list (vec-mul vcol 0.15))
+                  (vector->list (vec-add (vec-mul (vec-mul vcol 0.85) ndl) (vec-mul vcol 0.15)))))
             *bg-col*))))
 
 ;; spawns rays through all pixels and collects the results
