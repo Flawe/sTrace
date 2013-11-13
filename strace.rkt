@@ -1,5 +1,6 @@
 #lang racket
 (require racket/gui/base)
+(require "brdfs.rkt")
 (require "gui.rkt")
 (require "intersections.rkt")
 (require "math.rkt")
@@ -19,8 +20,6 @@
 (define *cam-up* #(0 1 0))
 (define *cam-right* #(1 0 0))
 (define *cam-fov* (degrees->radians 30.0))
-
-(define *point-light* #(0 3 5))
 
 ; we use this argb bitmap to render onto the gui canvas
 (define img (make-bitmap *img-width* *img-height*))
@@ -76,13 +75,16 @@
              (pos (third isect))
              (norm (fourth isect)))
         (if (> status 0)
-            (let* ((lvec (vec-norm (vec-sub *point-light* pos)))
-                   (ndl (max 0 (vec-dot norm lvec)))
+            (let* ((lpos (get-rand-light-point))
+                   (ldist-sqr (vec-dist-sqr lpos pos))
+                   (lvec (vec-norm (vec-sub lpos pos)))
+                   (vvec (vec-neg rd))
+                   (in-shadow (first (second (traverse-scene (vec-add pos (vec-mul lvec 0.00001)) lvec (vec-dist-sqr lpos pos)))))
                    (vcol (list->vector color))
-                   (in-shadow (first (second (traverse-scene (vec-add pos (vec-mul lvec 0.00001)) lvec (vec-dist-sqr *point-light* pos))))))
+                   (brdf (ggx lvec vvec norm ldist-sqr vcol)))
               (if (> in-shadow 0)
-                  (vector->list (vec-mul vcol 0.15))
-                  (vector->list (vec-add (vec-mul (vec-mul vcol 0.85) ndl) (vec-mul vcol 0.15)))))
+                  (vector->list (vec-mul brdf 0.15))
+                  (vector->list brdf)))
             *bg-col*))))
 
 ;; spawns rays through all pixels and collects the results

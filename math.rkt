@@ -8,6 +8,10 @@
 (provide vec-dist-sqr)
 (provide vec-dot)
 (provide vec-cross)
+(provide vec-saturate)
+(provide vec-reflect)
+(provide vec-neg)
+(provide vec-expt)
 
 (define (vec-add v0 v1)
   (for/vector #:length (vector-length v0)
@@ -48,3 +52,21 @@
   (vector (- (* (vector-ref v0 1) (vector-ref v1 2)) (* (vector-ref v0 2) (vector-ref v1 1)))
           (- (* (vector-ref v0 2) (vector-ref v1 0)) (* (vector-ref v0 0) (vector-ref v1 2)))
           (- (* (vector-ref v0 0) (vector-ref v1 1)) (* (vector-ref v0 1) (vector-ref v1 0)))))
+
+(define (vec-saturate v)
+  (for/vector #:length (vector-length v)
+    ((a (in-vector v)))
+    (max 0 (min 1 a))))
+
+(define (vec-reflect v n)
+  (vec-sub (vec-mul (vec-mul n (vec-dot v n)) 2) v))
+
+(define (vec-neg v)
+  (for/vector #:length (vector-length v)
+    ((a (in-vector v)))
+    (- a)))
+
+(define (vec-expt v e)
+  (for/vector #:length (vector-length v)
+    ((a (in-vector v)))
+    (expt a e)))
